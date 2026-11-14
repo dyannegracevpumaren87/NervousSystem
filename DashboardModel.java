@@ -1,4 +1,4 @@
-package com.mycompany.healthinformatioonsystem.dashboard;
+package com.mycompany.healthinformationsystem.dashboard;
 
 public class DashboardModel {
 
@@ -6,7 +6,7 @@ public class DashboardModel {
     private int totalHouseholds;
     private int totalResidents;
     private int totalHealthWorkers;
-    private int todaysCheckups;
+    private int todaysAppointments;
 
     public int getTotalSitios() {
         return totalSitios;
@@ -40,11 +40,11 @@ public class DashboardModel {
         this.totalHealthWorkers = totalHealthWorkers;
     }
 
-    public int getTodaysCheckups() {
-        return todaysCheckups;
+    public int getTodaysAppointments() {
+        return todaysAppointments;
     }
 
-    public void setTodaysCheckups(int todaysCheckups) {
-        this.todaysCheckups = todaysCheckups;
+    public void setTodaysAppointments(int todaysAppointments) {
+        this.todaysAppointments = todaysAppointments;
     }
 }

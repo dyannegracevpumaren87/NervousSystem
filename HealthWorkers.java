@@ -1,7 +1,8 @@
 package com.mycompany.healthinformationsystem.HealthWorkers;
 
 public class HealthWorkers {
-
+    
+    private int workerId;
     private String healthWorkerId;
     private String firstName;
     private String middleName;
@@ -10,6 +11,15 @@ public class HealthWorkers {
     private String contactNumber;
     private String position;
 
+    
+    public int getWorkerId() {
+        return workerId;
+    }
+
+    public void setWorkerId(int workerId) {
+        this.workerId = workerId;
+    }
+    
     public String getHealthWorkerId() {
         return healthWorkerId;
     }

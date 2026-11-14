@@ -10,19 +10,20 @@ public class HealthWorkersDao {
     public boolean insert(HealthWorkers hw) {
 
         String sql =
-            "INSERT INTO health_workers "
-          + "(health_worker_id,"
-          + "first_name,"
-          + "middle_name,"
-          + "last_name,"
-          + "suffix,"
-          + "contact_number,"
-          + "position) "
-          + "VALUES(?,?,?,?,?,?,?)";
+            "INSERT INTO health_workers (" +
+            "health_worker_id," +
+            "first_name," +
+            "middle_name," +
+            "last_name," +
+            "suffix," +
+            "contact_number," +
+            "position) " +
+            "VALUES (?,?,?,?,?,?,?)";
 
-        try(Connection conn = DB.getConnection();
-            PreparedStatement ps =
-                conn.prepareStatement(sql)) {
+        try (
+            Connection conn = DB.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)
+        ) {
 
             ps.setString(1, hw.getHealthWorkerId());
             ps.setString(2, hw.getFirstName());
@@ -34,7 +35,7 @@ public class HealthWorkersDao {
 
             return ps.executeUpdate() > 0;
 
-        } catch(SQLException ex) {
+        } catch (SQLException ex) {
 
             ex.printStackTrace();
         }
@@ -45,31 +46,34 @@ public class HealthWorkersDao {
     public boolean update(HealthWorkers hw) {
 
         String sql =
-            "UPDATE health_workers "
-          + "SET first_name=?,"
-          + "middle_name=?,"
-          + "last_name=?,"
-          + "suffix=?,"
-          + "contact_number=?,"
-          + "position=? "
-          + "WHERE health_worker_id=?";
+            "UPDATE health_workers SET " +
+            "health_worker_id=?," +
+            "first_name=?," +
+            "middle_name=?," +
+            "last_name=?," +
+            "suffix=?," +
+            "contact_number=?," +
+            "position=? " +
+            "WHERE worker_id=?";
 
-        try(Connection conn = DB.getConnection();
-            PreparedStatement ps =
-                conn.prepareStatement(sql)) {
+        try (
+            Connection conn = DB.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)
+        ) {
 
-            ps.setString(1, hw.getFirstName());
-            ps.setString(2, hw.getMiddleName());
-            ps.setString(3, hw.getLastName());
-            ps.setString(4, hw.getSuffix());
-            ps.setString(5, hw.getContactNumber());
-            ps.setString(6, hw.getPosition());
+            ps.setString(1, hw.getHealthWorkerId());
+            ps.setString(2, hw.getFirstName());
+            ps.setString(3, hw.getMiddleName());
+            ps.setString(4, hw.getLastName());
+            ps.setString(5, hw.getSuffix());
+            ps.setString(6, hw.getContactNumber());
+            ps.setString(7, hw.getPosition());
 
-            ps.setString(7, hw.getHealthWorkerId());
+            ps.setInt(8, hw.getWorkerId());
 
             return ps.executeUpdate() > 0;
 
-        } catch(SQLException ex) {
+        } catch (SQLException ex) {
 
             ex.printStackTrace();
         }
@@ -77,22 +81,22 @@ public class HealthWorkersDao {
         return false;
     }
 
-    public boolean delete(String healthWorkerId) {
+    public boolean delete(int workerId) {
 
         String sql =
-            "DELETE FROM health_workers "
-          + "WHERE health_worker_id=?";
+            "DELETE FROM health_workers " +
+            "WHERE worker_id=?";
 
-        try(Connection conn = DB.getConnection();
-            PreparedStatement ps =
-                conn.prepareStatement(sql)) {
+        try (
+            Connection conn = DB.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)
+        ) {
 
-            ps.setString(1,
-                    healthWorkerId);
+            ps.setInt(1, workerId);
 
             return ps.executeUpdate() > 0;
 
-        } catch(SQLException ex) {
+        } catch (SQLException ex) {
 
             ex.printStackTrace();
         }
@@ -108,49 +112,47 @@ public class HealthWorkersDao {
         String sql =
                 "SELECT * FROM health_workers";
 
-        try(Connection conn = DB.getConnection();
+        try (
+            Connection conn = DB.getConnection();
             PreparedStatement ps =
-                conn.prepareStatement(sql);
+                    conn.prepareStatement(sql);
             ResultSet rs =
-                ps.executeQuery()) {
+                    ps.executeQuery()
+        ) {
 
-            while(rs.next()) {
+            while (rs.next()) {
 
                 HealthWorkers hw =
                         new HealthWorkers();
 
+                hw.setWorkerId(
+                        rs.getInt("worker_id"));
+
                 hw.setHealthWorkerId(
-                        rs.getString(
-                                "health_worker_id"));
+                        rs.getString("health_worker_id"));
 
                 hw.setFirstName(
-                        rs.getString(
-                                "first_name"));
+                        rs.getString("first_name"));
 
                 hw.setMiddleName(
-                        rs.getString(
-                                "middle_name"));
+                        rs.getString("middle_name"));
 
                 hw.setLastName(
-                        rs.getString(
-                                "last_name"));
+                        rs.getString("last_name"));
 
                 hw.setSuffix(
-                        rs.getString(
-                                "suffix"));
+                        rs.getString("suffix"));
 
                 hw.setContactNumber(
-                        rs.getString(
-                                "contact_number"));
+                        rs.getString("contact_number"));
 
                 hw.setPosition(
-                        rs.getString(
-                                "position"));
+                        rs.getString("position"));
 
                 list.add(hw);
             }
 
-        } catch(SQLException ex) {
+        } catch (SQLException ex) {
 
             ex.printStackTrace();
         }

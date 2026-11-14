@@ -1,4 +1,4 @@
-package com.mycompany.healthinformatioonsystem.dashboard;
+package com.mycompany.healthinformationsystem.dashboard;
 
 import com.mycompany.healthinformationsystem.HealthView;
 
@@ -7,21 +7,18 @@ public class DashboardController {
     private final HealthView hv;
     private final DashboardDao dao;
 
-    public DashboardController(
-            HealthView temp) {
+    public DashboardController(HealthView temp) {
 
         hv = temp;
-
         dao = new DashboardDao();
+
+        // Register this controller in the view
+        hv.setDashboardController(this);
 
         loadDashboard();
     }
 
-    private void loadDashboard() {
-
-        hv.sitioNo.setText(
-                String.valueOf(
-                        dao.getTotalSitios()));
+    public void loadDashboard() {
 
         hv.householdNo.setText(
                 String.valueOf(
@@ -35,9 +32,9 @@ public class DashboardController {
                 String.valueOf(
                         dao.getTotalHealthWorkers()));
 
+        // "Appointments Today" tile (the label is still named checkupsNo in HealthView)
         hv.checkupsNo.setText(
                 String.valueOf(
-                        dao.getTodaysCheckups()));
-        
+                        dao.getTodaysAppointments()));
     }
 }

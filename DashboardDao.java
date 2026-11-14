@@ -1,4 +1,4 @@
-package com.mycompany.healthinformatioonsystem.dashboard;
+package com.mycompany.healthinformationsystem.dashboard;
 
 import com.mycompany.healthinformationsystem.DB;
 import java.sql.*;
@@ -7,18 +7,15 @@ public class DashboardDao {
 
     private int count(String sql) {
 
-        try(Connection conn =
-                DB.getConnection();
-            Statement stmt =
-                conn.createStatement();
-            ResultSet rs =
-                stmt.executeQuery(sql)) {
+        try (Connection conn = DB.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
 
             if (rs.next()) {
                 return rs.getInt(1);
             }
 
-        } catch(SQLException ex) {
+        } catch (SQLException ex) {
             ex.printStackTrace();
         }
 
@@ -28,32 +25,33 @@ public class DashboardDao {
     public int getTotalSitios() {
 
         return count(
-            "SELECT COUNT(*) FROM sitio");
+                "SELECT COUNT(*) FROM sitio");
     }
 
     public int getTotalHouseholds() {
 
         return count(
-            "SELECT COUNT(*) FROM households");
+                "SELECT COUNT(*) FROM household");
     }
 
     public int getTotalResidents() {
 
         return count(
-            "SELECT COUNT(*) FROM residents");
+                "SELECT COUNT(*) FROM residents");
     }
 
     public int getTotalHealthWorkers() {
 
         return count(
-            "SELECT COUNT(*) FROM health_workers");
+                "SELECT COUNT(*) FROM health_workers");
     }
 
-    public int getTodaysCheckups() {
+    /** Number of appointments recorded today. */
+    public int getTodaysAppointments() {
 
         return count(
-            "SELECT COUNT(*) "
-          + "FROM checkups "
-          + "WHERE DATE(checkup_date)=CURDATE()");
+                "SELECT COUNT(*) "
+                + "FROM appointments "
+                + "WHERE DATE(appointment_date) = CURDATE()");
     }
 }

@@ -1,308 +1,374 @@
 package com.mycompany.healthinformationsystem.Residents;
 
-import com.mycompany.healthinformationsystem.DB;
 import com.mycompany.healthinformationsystem.HealthView;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.sql.Connection;
-import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+
 import javax.swing.JOptionPane;
+import javax.swing.ListSelectionModel;
 import javax.swing.table.DefaultTableModel;
 
 public class ResidentsController {
 
-    HealthView hv;
+    private final ResidentsDao dao = new ResidentsDao();
+    private final HealthView view;
     private final DefaultTableModel tableModel;
 
-    // resident_id of each table row (same order as the rows shown)
-    private final List<Integer> rowIds = new ArrayList<>();
+    // Residents objects in the same order as the table rows
+    // (this is how we know the resident_id of a selected row)
+    private List<Residents> currentList = new ArrayList<>();
 
-    // resident_id of the selected row (-1 = none)
-    private int selectedId = -1;
+    public ResidentsController(HealthView view) {
 
-    public ResidentsController(HealthView temp) {
-        hv = temp;
-        hv.residentListeners(new AllActions());
+        this.view = view;
 
-        tableModel = new DefaultTableModel(new String[]{
-            "Household Id", "Barangay Id", "Full Name", "Birthdate", "Sex",
-            "Civil Status", "Contact Number", "Email Address", "Disability", "Pwd Id"
-        }, 0) {
+        // Replace the table model with a read-only one: rows are changed
+        // through the form + buttons, not by typing into the table.
+        DefaultTableModel old = (DefaultTableModel) view.getTblResidents().getModel();
+        String[] columns = new String[old.getColumnCount()];
+        for (int i = 0; i < columns.length; i++) {
+            columns[i] = old.getColumnName(i);
+        }
+        // (removed: columns[6] = "Contact Number"; it overwrote "Civil Status".
+        //  The header already says "Contact Number" at index 7.)
+
+        tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         };
+        view.getTblResidents().setModel(tableModel);
+        view.getTblResidents().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        hv.ResidentsTbl.setModel(tableModel);
+        // SEARCH button and Enter key in the search box
+        view.getBtnSearchResident().addActionListener(e
+                -> search(view.getTxtSearchResident().getText()));
+        view.getTxtSearchResident().addActionListener(e
+                -> search(view.getTxtSearchResident().getText()));
 
-        hv.ResidentsTbl.getSelectionModel().addListSelectionListener(e -> {
+        // INSERT / UPDATE / DELETE
+        view.Insert3.addActionListener(e -> insertResident());
+        view.Update3.addActionListener(e -> updateResident());
+        view.Delete3.addActionListener(e -> deleteResident());
+
+        // Click a row -> fill the form
+        view.getTblResidents().getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
-                fillFieldsFromSelectedRow();
+                populateForm();
             }
         });
 
-        loadResidentsTbl();
+        loadResidents();
     }
 
-    // ---------- LOAD TABLE ----------
-    private void loadResidentsTbl() {
-        tableModel.setRowCount(0);
-        rowIds.clear();
-
-        String sql = "SELECT resident_id, household_id, barangay_id, first_name, middle_name, "
-                   + "last_name, suffix, birthdate, sex, civil_status, contact_number, "
-                   + "email_address, disability, pwd_id FROM residents";
-
-        try (Connection conn = DB.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-
-            while (rs.next()) {
-                rowIds.add(rs.getInt("resident_id"));
-                tableModel.addRow(new Object[]{
-                    rs.getString("household_id"),
-                    rs.getString("barangay_id"),
-                    buildFullName(rs.getString("first_name"), rs.getString("middle_name"),
-                                  rs.getString("last_name"), rs.getString("suffix")),
-                    rs.getDate("birthdate"),
-                    rs.getString("sex"),
-                    rs.getString("civil_status"),
-                    rs.getString("contact_number"),
-                    rs.getString("email_address"),
-                    rs.getString("disability"),
-                    rs.getString("pwd_id")
-                });
-            }
-        } catch (SQLException ex) {
-            showError(ex);
-        }
-    }
-
-    private String buildFullName(String first, String middle, String last, String suffix) {
-        StringBuilder sb = new StringBuilder();
-        for (String part : new String[]{first, middle, last, suffix}) {
-            if (part != null && !part.trim().isEmpty()) {
-                if (sb.length() > 0) sb.append(' ');
-                sb.append(part.trim());
-            }
-        }
-        return sb.toString();
-    }
-
-    // ---------- CLICK ROW -> FILL FIELDS ----------
-    private void fillFieldsFromSelectedRow() {
-        int row = hv.ResidentsTbl.getSelectedRow();
-        if (row < 0 || row >= rowIds.size()) {
-            return;
-        }
-        selectedId = rowIds.get(row);
-
-        String sql = "SELECT * FROM residents WHERE resident_id = ?";
-        try (Connection conn = DB.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, selectedId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    hv.jTextField12.setText(nz(rs.getString("household_id")));
-                    hv.jTextField14.setText(nz(rs.getString("barangay_id")));
-                    hv.jTextField34.setText(nz(rs.getString("first_name")));
-                    hv.jTextField42.setText(nz(rs.getString("middle_name")));
-                    hv.jTextField43.setText(nz(rs.getString("last_name")));
-                    hv.jTextField44.setText(nz(rs.getString("suffix")));
-                    hv.jTextField45.setText(nz(rs.getString("birthdate")));
-                    hv.jComboBox2.setSelectedItem(rs.getString("sex"));            // sex
-                    hv.jComboBox3.setSelectedItem(rs.getString("civil_status"));   // civil status
-                    hv.jTextField48.setText(nz(rs.getString("contact_number")));
-                    hv.jTextField49.setText(nz(rs.getString("email_address")));
-                    hv.jTextField50.setText(nz(rs.getString("disability")));
-                    hv.jTextField51.setText(nz(rs.getString("pwd_id")));
-                }
-            }
-        } catch (SQLException ex) {
-            showError(ex);
-        }
-    }
-
-    private String nz(String s) {
-        return s == null ? "" : s;
-    }
-
-    // ---------- VALIDATION ----------
-    private boolean validateInput() {
-        if (hv.jTextField12.getText().trim().isEmpty()          // household id
-                || hv.jTextField14.getText().trim().isEmpty()   // barangay id
-                || hv.jTextField34.getText().trim().isEmpty()   // first name
-                || hv.jTextField43.getText().trim().isEmpty()   // last name
-                || hv.jTextField45.getText().trim().isEmpty()   // birthdate
-                || hv.jComboBox2.getSelectedItem() == null) {   // sex
-            JOptionPane.showMessageDialog(hv,
-                "Household Id, Barangay Id, First Name, Last Name, Birthdate and Sex are required.");
-            return false;
-        }
+    // ------------------------------------------------------------------
+    // Loading / searching
+    // ------------------------------------------------------------------
+    public void loadResidents() {
         try {
-            Date.valueOf(hv.jTextField45.getText().trim());
-        } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(hv, "Birthdate must be in YYYY-MM-DD format (e.g. 2001-05-23).");
-            return false;
-        }
-        return true;
-    }
-
-    // empty optional field -> NULL
-    private void setNullableString(PreparedStatement ps, int index, String value) throws SQLException {
-        if (value == null || value.trim().isEmpty()) {
-            ps.setNull(index, java.sql.Types.VARCHAR);
-        } else {
-            ps.setString(index, value.trim());
+            fillTable(dao.getAll());
+        } catch (SQLException e) {
+            showError(e);
         }
     }
 
-    // binds the 13 form values to parameters 1..13
-    private void bindFields(PreparedStatement ps) throws SQLException {
-        ps.setString(1, hv.jTextField12.getText().trim());             // household id
-        ps.setString(2, hv.jTextField14.getText().trim());             // barangay id
-        ps.setString(3, hv.jTextField34.getText().trim());             // first name
-        setNullableString(ps, 4, hv.jTextField42.getText());           // middle name
-        ps.setString(5, hv.jTextField43.getText().trim());             // last name
-        setNullableString(ps, 6, hv.jTextField44.getText());           // suffix
-        ps.setDate(7, Date.valueOf(hv.jTextField45.getText().trim())); // birthdate
-        ps.setString(8, hv.jComboBox2.getSelectedItem().toString());   // sex
-        Object civil = hv.jComboBox3.getSelectedItem();                // civil status
-        setNullableString(ps, 9, civil == null ? null : civil.toString());
-        setNullableString(ps, 10, hv.jTextField48.getText());          // contact number
-        setNullableString(ps, 11, hv.jTextField49.getText());          // email
-        setNullableString(ps, 12, hv.jTextField50.getText());          // disability
-        setNullableString(ps, 13, hv.jTextField51.getText());          // pwd id
+    public void search(String keyword) {
+
+        if (keyword == null || keyword.isBlank()) {
+            loadResidents();
+            return;
+        }
+
+        try {
+            List<Residents> results = dao.searchByName(keyword.trim());
+            fillTable(results);
+
+            if (results.isEmpty()) {
+                JOptionPane.showMessageDialog(view, "No matching residents found.");
+            }
+        } catch (SQLException e) {
+            showError(e);
+        }
     }
 
-    // ---------- INSERT ----------
+    private void fillTable(List<Residents> residents) {
+
+        currentList = new ArrayList<>(residents);
+        tableModel.setRowCount(0);
+
+        for (Residents r : residents) {
+            tableModel.addRow(new Object[]{
+                r.getResidentId(),      // <-- was missing: fills the "Resident Id" column
+                r.getHouseholdId(), r.getBarangayId(), r.getFullName(), r.getBirthdate(),
+                r.getSex(), r.getCivilStatus(), r.getContactNumber(), r.getEmailAddress(),
+                r.getDisability(), r.getPwdId()
+            });
+        }
+
+        clearForm();
+    }
+
+    // ------------------------------------------------------------------
+    // INSERT
+    // ------------------------------------------------------------------
     private void insertResident() {
-        if (!validateInput()) return;
 
-        String sql = "INSERT INTO residents (household_id, barangay_id, first_name, middle_name, "
-                   + "last_name, suffix, birthdate, sex, civil_status, contact_number, email_address, "
-                   + "disability, pwd_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        Residents r = readForm();
+        if (r == null) {
+            return;
+        }
 
-        try (Connection conn = DB.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try {
+            dao.insert(r);
 
-            bindFields(ps);
+            loadResidents();          // the new row shows up in the table
+            view.refreshDashboard();  // resident count changed
 
-            if (ps.executeUpdate() > 0) {
-                JOptionPane.showMessageDialog(hv, "Resident inserted successfully!");
-                loadResidentsTbl();
-                clearFields();
-            }
-        } catch (SQLException ex) {
-            showError(ex);
+            JOptionPane.showMessageDialog(view, "Resident added successfully.");
+
+        } catch (SQLException e) {
+            showError(e);
         }
     }
 
-    // ---------- UPDATE ----------
+    // ------------------------------------------------------------------
+    // UPDATE
+    // ------------------------------------------------------------------
     private void updateResident() {
-        if (selectedId < 0) {
-            JOptionPane.showMessageDialog(hv, "Click a resident in the table first.");
+
+        Residents selected = getSelectedResident();
+        if (selected == null) {
+            JOptionPane.showMessageDialog(view, "Please select a resident in the table first.");
             return;
         }
-        if (!validateInput()) return;
 
-        String sql = "UPDATE residents SET household_id=?, barangay_id=?, first_name=?, middle_name=?, "
-                   + "last_name=?, suffix=?, birthdate=?, sex=?, civil_status=?, contact_number=?, "
-                   + "email_address=?, disability=?, pwd_id=? WHERE resident_id=?";
+        Residents r = readForm();
+        if (r == null) {
+            return;
+        }
 
-        try (Connection conn = DB.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        int answer = JOptionPane.showConfirmDialog(
+                view,
+                "Save the changes made to this resident?",
+                "Confirm Update",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
+        );
 
-            bindFields(ps);
-            ps.setInt(14, selectedId);
+        if (answer != JOptionPane.YES_OPTION) {
+            return;
+        }
 
-            if (ps.executeUpdate() > 0) {
-                JOptionPane.showMessageDialog(hv, "Resident updated successfully!");
-                loadResidentsTbl();
-                clearFields();
-            } else {
-                JOptionPane.showMessageDialog(hv, "Resident not found.");
-            }
-        } catch (SQLException ex) {
-            showError(ex);
+        r.setResidentId(selected.getResidentId());
+
+        try {
+            dao.update(r);
+
+            loadResidents();          // the table shows the edited values
+
+            JOptionPane.showMessageDialog(view, "Resident updated successfully.");
+
+        } catch (SQLException e) {
+            showError(e);
         }
     }
 
-    // ---------- DELETE ----------
+    // ------------------------------------------------------------------
+    // DELETE
+    // ------------------------------------------------------------------
     private void deleteResident() {
-        if (selectedId < 0) {
-            JOptionPane.showMessageDialog(hv, "Click a resident in the table first.");
+
+        Residents selected = getSelectedResident();
+        if (selected == null) {
+            JOptionPane.showMessageDialog(view, "Please select a resident in the table first.");
             return;
         }
 
-        int confirm = JOptionPane.showConfirmDialog(hv,
-                "Are you sure you want to delete this resident?",
-                "Confirm Delete", JOptionPane.YES_NO_OPTION);
-        if (confirm != JOptionPane.YES_OPTION) return;
+        int answer = JOptionPane.showConfirmDialog(
+                view,
+                "Delete " + selected.getFullName() + "?\n\nThis cannot be undone.",
+                "Confirm Deletion",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
 
-        String sql = "DELETE FROM residents WHERE resident_id = ?";
+        if (answer != JOptionPane.YES_OPTION) {
+            return;
+        }
 
-        try (Connection conn = DB.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try {
+            dao.delete(selected.getResidentId());
 
-            ps.setInt(1, selectedId);
+            loadResidents();          // the row disappears from the table
+            view.refreshDashboard();  // resident count changed
 
-            if (ps.executeUpdate() > 0) {
-                JOptionPane.showMessageDialog(hv, "Resident deleted successfully!");
-                loadResidentsTbl();
-                clearFields();
-            } else {
-                JOptionPane.showMessageDialog(hv, "Resident not found.");
-            }
-        } catch (SQLException ex) {
-            showError(ex);
+            JOptionPane.showMessageDialog(view, "Resident deleted successfully.");
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(
+                    view,
+                    "Unable to delete resident.\n\n"
+                    + "The resident may still have check-up records.\n\n"
+                    + e.getMessage(),
+                    "Delete Failed",
+                    JOptionPane.ERROR_MESSAGE
+            );
         }
     }
 
-    // ---------- HELPERS ----------
-    private void clearFields() {
-        hv.jTextField12.setText("");
-        hv.jTextField14.setText("");
-        hv.jTextField34.setText("");
-        hv.jTextField42.setText("");
-        hv.jTextField43.setText("");
-        hv.jTextField44.setText("");
-        hv.jTextField45.setText("");
-        if (hv.jComboBox2.getItemCount() > 0) hv.jComboBox2.setSelectedIndex(0);
-        if (hv.jComboBox3.getItemCount() > 0) hv.jComboBox3.setSelectedIndex(0);
-        hv.jTextField48.setText("");
-        hv.jTextField49.setText("");
-        hv.jTextField50.setText("");
-        hv.jTextField51.setText("");
-        hv.ResidentsTbl.clearSelection();
-        selectedId = -1;
+    // ------------------------------------------------------------------
+    // Table <-> form
+    // ------------------------------------------------------------------
+    /** Returns the Residents object for the selected table row, or null. */
+    private Residents getSelectedResident() {
+
+        int viewRow = view.getTblResidents().getSelectedRow();
+        if (viewRow < 0) {
+            return null;
+        }
+
+        int row = view.getTblResidents().convertRowIndexToModel(viewRow);
+        if (row >= currentList.size()) {
+            return null;
+        }
+
+        return currentList.get(row);
     }
 
-    private void showError(SQLException ex) {
-        JOptionPane.showMessageDialog(hv, "Database Error: " + ex.getMessage(),
+    /** Copies the selected table row into the form fields. */
+    private void populateForm() {
+
+        Residents r = getSelectedResident();
+        if (r == null) {
+            return;
+        }
+
+        view.getTxtHouseholdId().setText(str(r.getHouseholdId()));
+        view.getTxtBarangayId().setText(str(r.getBarangayId()));
+        view.getTxtFirstName().setText(str(r.getFirstName()));
+        view.getTxtMiddleName().setText(str(r.getMiddleName()));
+        view.getTxtLastName().setText(str(r.getLastName()));
+        view.getTxtSuffix().setText(str(r.getSuffix()));
+        view.getTxtBirthdate().setText(str(r.getBirthdate()));
+
+        String sex = str(r.getSex());
+        if (sex.equalsIgnoreCase("Female")) {
+            view.getRdoFemale().setSelected(true);
+        } else if (sex.equalsIgnoreCase("Male")) {
+            view.getRdoMale().setSelected(true);
+        } else {
+            view.getSexGroup().clearSelection();
+        }
+
+        view.getCmbCivilStatus().setSelectedItem(str(r.getCivilStatus()));
+        view.getTxtCpNumber().setText(str(r.getContactNumber()));
+        view.getTxtEmailAddress().setText(str(r.getEmailAddress()));
+        view.getTxtDisability().setText(str(r.getDisability()));
+        view.getTxtPwdId().setText(str(r.getPwdId()));
+    }
+
+    /**
+     * Builds a Residents object from the form fields.
+     * Returns null (after showing a message) if something is invalid.
+     */
+    private Residents readForm() {
+
+        String householdText = view.getTxtHouseholdId().getText().trim();
+        String firstName = view.getTxtFirstName().getText().trim();
+        String lastName = view.getTxtLastName().getText().trim();
+        String birthdayText = view.getTxtBirthdate().getText().trim();
+
+        if (householdText.isEmpty() || firstName.isEmpty() || lastName.isEmpty()) {
+            warn("Household ID, First Name and Last Name are required.");
+            return null;
+        }
+
+        int householdId;
+        try {
+            householdId = Integer.parseInt(householdText);
+        } catch (NumberFormatException e) {
+            warn("Household ID must be a number.");
+            return null;
+        }
+
+        LocalDate birthdate = null;
+        if (!birthdayText.isEmpty()) {
+            try {
+                birthdate = LocalDate.parse(birthdayText);   // YYYY-MM-DD
+            } catch (DateTimeParseException e) {
+                warn("Birthday must be in YYYY-MM-DD format, for example 2001-05-24.");
+                return null;
+            }
+        }
+
+        String sex = null;
+        if (view.getRdoFemale().isSelected()) {
+            sex = "Female";
+        } else if (view.getRdoMale().isSelected()) {
+            sex = "Male";
+        }
+
+        Object civil = view.getCmbCivilStatus().getSelectedItem();
+
+        Residents r = new Residents();
+        r.setHouseholdId(householdId);
+        r.setBarangayId(blankToNull(view.getTxtBarangayId().getText()));
+        r.setFirstName(firstName);
+        r.setMiddleName(blankToNull(view.getTxtMiddleName().getText()));
+        r.setLastName(lastName);
+        r.setSuffix(blankToNull(view.getTxtSuffix().getText()));
+        r.setBirthdate(birthdate);
+        r.setSex(sex);
+        r.setCivilStatus(civil == null ? null : civil.toString());
+        r.setContactNumber(blankToNull(view.getTxtCpNumber().getText()));
+        r.setEmailAddress(blankToNull(view.getTxtEmailAddress().getText()));
+        r.setDisability(blankToNull(view.getTxtDisability().getText()));
+        r.setPwdId(blankToNull(view.getTxtPwdId().getText()));
+
+        return r;
+    }
+
+    public void clearForm() {
+
+        view.getTxtHouseholdId().setText("");
+        view.getTxtBarangayId().setText("");
+        view.getTxtFirstName().setText("");
+        view.getTxtMiddleName().setText("");
+        view.getTxtLastName().setText("");
+        view.getTxtSuffix().setText("");
+        view.getTxtBirthdate().setText("");
+        view.getSexGroup().clearSelection();
+
+        if (view.getCmbCivilStatus().getItemCount() > 0) {
+            view.getCmbCivilStatus().setSelectedIndex(0);
+        }
+
+        view.getTxtCpNumber().setText("");
+        view.getTxtEmailAddress().setText("");
+        view.getTxtDisability().setText("");
+        view.getTxtPwdId().setText("");
+    }
+
+    private String str(Object o) {
+        return o == null ? "" : o.toString();
+    }
+
+    private String blankToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
+    private void warn(String message) {
+        JOptionPane.showMessageDialog(view, message, "Missing or invalid data",
+                JOptionPane.WARNING_MESSAGE);
+    }
+
+    private void showError(SQLException e) {
+        JOptionPane.showMessageDialog(view, "Database error: " + e.getMessage(),
                 "Error", JOptionPane.ERROR_MESSAGE);
-    }
-
-    // ---------- BUTTON EVENTS (Residents tab buttons only) ----------
-    class AllActions implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            Object source = e.getSource();
-
-            if (source == hv.Insert3) {
-                insertResident();
-            } else if (source == hv.Update3) {
-                updateResident();
-            } else if (source == hv.Delete3) {
-                deleteResident();
-            }
-        }
     }
 }

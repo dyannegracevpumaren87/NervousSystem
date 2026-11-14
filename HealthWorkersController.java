@@ -11,14 +11,15 @@ import javax.swing.table.DefaultTableModel;
 public class HealthWorkersController {
 
     private final HealthView hv;
+
     private final HealthWorkersDao dao;
 
     private final DefaultTableModel tableModel;
 
-    private final List<String> rowIds =
+    private final List<Integer> rowIds =
             new ArrayList<>();
 
-    private String selectedId = null;
+    private int selectedId = -1;
 
     public HealthWorkersController(
             HealthView temp) {
@@ -58,11 +59,11 @@ public class HealthWorkersController {
                 .getSelectionModel()
                 .addListSelectionListener(e -> {
 
-            if (!e.getValueIsAdjusting()) {
+                    if (!e.getValueIsAdjusting()) {
 
-                fillFieldsFromSelectedRow();
-            }
-        });
+                        fillFieldsFromSelectedRow();
+                    }
+                });
 
         loadWorkerTable();
     }
@@ -77,7 +78,7 @@ public class HealthWorkersController {
                 dao.getAll()) {
 
             rowIds.add(
-                    hw.getHealthWorkerId());
+                    hw.getWorkerId());
 
             tableModel.addRow(
                     new Object[]{
@@ -98,7 +99,7 @@ public class HealthWorkersController {
                 hv.healthWorkerTbl.getSelectedRow();
 
         if (row < 0 ||
-            row >= rowIds.size()) {
+                row >= rowIds.size()) {
 
             return;
         }
@@ -106,40 +107,21 @@ public class HealthWorkersController {
         selectedId =
                 rowIds.get(row);
 
-        hv.HWID.setText(
-                String.valueOf(
-                        tableModel.getValueAt(
-                                row, 0)));
+        hv.HWID.setText(cell(row, 0));
+        hv.HWFN.setText(cell(row, 1));
+        hv.HWMN.setText(cell(row, 2));
+        hv.HWLN.setText(cell(row, 3));
+        hv.HWEX.setText(cell(row, 4));
+        hv.HWNO.setText(cell(row, 5));
+        hv.HWPOS.setText(cell(row, 6));
+    }
 
-        hv.HWFN.setText(
-                String.valueOf(
-                        tableModel.getValueAt(
-                                row, 1)));
+    /** Returns the table cell as text, or "" if the cell is empty (null). */
+    private String cell(int row, int column) {
 
-        hv.HWMN.setText(
-                String.valueOf(
-                        tableModel.getValueAt(
-                                row, 2)));
+        Object value = tableModel.getValueAt(row, column);
 
-        hv.HWLN.setText(
-                String.valueOf(
-                        tableModel.getValueAt(
-                                row, 3)));
-
-        hv.HWEX.setText(
-                String.valueOf(
-                        tableModel.getValueAt(
-                                row, 4)));
-
-        hv.HWNO.setText(
-                String.valueOf(
-                        tableModel.getValueAt(
-                                row, 5)));
-
-        hv.HWPOS.setText(
-                String.valueOf(
-                        tableModel.getValueAt(
-                                row, 6)));
+        return value == null ? "" : value.toString();
     }
 
     private boolean validateInput() {
@@ -182,6 +164,9 @@ public class HealthWorkersController {
         HealthWorkers hw =
                 new HealthWorkers();
 
+        hw.setWorkerId(
+                selectedId);
+
         hw.setHealthWorkerId(
                 hv.HWID.getText().trim());
 
@@ -209,6 +194,7 @@ public class HealthWorkersController {
     private void insertWorker() {
 
         if (!validateInput()) {
+
             return;
         }
 
@@ -220,6 +206,8 @@ public class HealthWorkersController {
                     "Health Worker added successfully.");
 
             loadWorkerTable();
+
+            hv.refreshDashboard();
 
             clearFields();
 
@@ -233,7 +221,7 @@ public class HealthWorkersController {
 
     private void updateWorker() {
 
-        if (selectedId == null) {
+        if (selectedId == -1) {
 
             JOptionPane.showMessageDialog(
                     hv,
@@ -243,6 +231,7 @@ public class HealthWorkersController {
         }
 
         if (!validateInput()) {
+
             return;
         }
 
@@ -254,6 +243,8 @@ public class HealthWorkersController {
                     "Health Worker updated successfully.");
 
             loadWorkerTable();
+
+            hv.refreshDashboard();
 
             clearFields();
 
@@ -267,7 +258,7 @@ public class HealthWorkersController {
 
     private void deleteWorker() {
 
-        if (selectedId == null) {
+        if (selectedId == -1) {
 
             JOptionPane.showMessageDialog(
                     hv,
@@ -298,6 +289,8 @@ public class HealthWorkersController {
 
             loadWorkerTable();
 
+            hv.refreshDashboard();
+
             clearFields();
 
         } else {
@@ -320,7 +313,7 @@ public class HealthWorkersController {
 
         hv.healthWorkerTbl.clearSelection();
 
-        selectedId = null;
+        selectedId = -1;
     }
 
     class AllActions
@@ -333,17 +326,18 @@ public class HealthWorkersController {
             Object source =
                     e.getSource();
 
-            if (source == hv.Insert5) {
+            if (source ==
+                    hv.Insert5) {
 
                 insertWorker();
 
-            } else if (
-                    source == hv.Update5) {
+            } else if (source ==
+                    hv.Update5) {
 
                 updateWorker();
 
-            } else if (
-                    source == hv.Delete5) {
+            } else if (source ==
+                    hv.Delete5) {
 
                 deleteWorker();
             }
